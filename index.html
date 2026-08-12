@@ -90,11 +90,11 @@ nav.tabs button.active{ background:var(--sage); color:#fff; }
 .meal-label{ display:flex; align-items:center; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--ink-soft); text-transform:uppercase; }
 .slot{ background:#fff; border:1px dashed var(--line); border-radius:10px; min-height:44px; padding:7px 10px; display:flex; align-items:center; justify-content:flex-start; text-align:left; font-size:13px; color:#B9B9A9; cursor:pointer; transition:.12s; }
 .slot:hover{ border-color:var(--sage); }
-.slot.filled{ border-style:solid; flex-direction:row; align-items:center; justify-content:space-between; gap:8px; cursor:default; padding-right:6px; }
-.slot.filled .slot-content{ flex:1; cursor:pointer; display:flex; flex-direction:column; gap:1px; min-width:0; }
-.slot.filled .rname{ color:var(--ink); font-weight:600; font-size:13px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.slot.filled .rkcal{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--sage-dark); }
-.slot-actions{ display:flex; gap:4px; flex-shrink:0; }
+.slot.filled{ border-style:solid; flex-direction:row; align-items:center; justify-content:space-between; gap:8px; cursor:default; padding-right:6px; overflow:hidden; }
+.slot.filled .slot-content{ flex:1 1 auto; min-width:0; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; gap:1px; }
+.slot.filled .rname{ color:var(--ink); font-weight:600; font-size:13px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.slot.filled .rkcal{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--sage-dark); white-space:nowrap; }
+.slot-actions{ display:flex; gap:4px; flex:0 0 auto; }
 .slot-actions button{ width:26px; height:26px; border-radius:7px; border:1px solid var(--line); background:#fff; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--ink-soft); }
 .slot-actions button:hover{ border-color:var(--sage); color:var(--sage-dark); }
 .slot-actions button.rm-btn:hover{ border-color:var(--danger); color:var(--danger); }
@@ -152,6 +152,7 @@ nav.tabs button.active{ background:var(--sage); color:#fff; }
   .row2{ grid-template-columns:1fr; }
   header.top h1{ font-size:22px; }
   .ing-row{ grid-template-columns: 62px 55px 1fr 26px; }
+  .card .thumb, .card .thumb-empty{ height:170px; }
 }
 </style>
 </head>
