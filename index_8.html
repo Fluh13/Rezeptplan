@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rezeptbuch & Wochenplan</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+:root{
+  --bg: #F1F3ED;
+  --paper: #FDFCF9;
+  --ink: #262620;
+  --ink-soft: #6B6B5F;
+  --sage: #3F5A45;
+  --sage-dark: #2C4030;
+  --mustard: #C99A2E;
+  --line: #DEDED0;
+  --danger: #A94438;
+  --radius: 14px;
+}
+*{box-sizing:border-box;}
+body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; -webkit-tap-highlight-color:transparent; }
+h1,h2,h3{ font-family:'Fraunces',serif; font-weight:600; margin:0; }
+.app{ max-width:720px; margin:0 auto; padding:20px 16px 80px; }
+
+header.top{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:10px; }
+header.top h1{ font-size:26px; color:var(--sage-dark); letter-spacing:-0.01em; }
+header.top .eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--mustard); display:block; margin-bottom:2px; }
+
+.sync-badge{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--ink-soft); display:flex; align-items:center; gap:5px; margin-bottom:14px; }
+.sync-dot{ width:7px; height:7px; border-radius:50%; background:#B9B9A9; }
+.sync-dot.live{ background:var(--sage); }
+
+nav.tabs{ display:flex; gap:4px; background:var(--paper); border:1px solid var(--line); border-radius:999px; padding:4px; margin-bottom:22px; width:fit-content; }
+nav.tabs button{ border:none; background:transparent; padding:9px 18px; border-radius:999px; font-family:'Inter'; font-weight:600; font-size:14px; color:var(--ink-soft); cursor:pointer; transition:.15s; }
+nav.tabs button.active{ background:var(--sage); color:#fff; }
+
+.view{ display:none; }
+.view.active{ display:block; }
+
+.toolbar{ display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
+.toolbar input[type="search"]{ flex:1; min-width:160px; padding:10px 14px; border-radius:10px; border:1px solid var(--line); background:var(--paper); font-family:'Inter'; font-size:14px; }
+.btn{ border:none; border-radius:10px; padding:10px 16px; font-family:'Inter'; font-weight:600; font-size:14px; cursor:pointer; transition:.15s; }
+.btn-primary{ background:var(--sage); color:#fff; }
+.btn-primary:hover{ background:var(--sage-dark); }
+.btn-ghost{ background:transparent; border:1px solid var(--line); color:var(--ink); }
+.btn-ghost:hover{ border-color:var(--sage); }
+.btn-danger{ background:transparent; color:var(--danger); }
+.btn-sm{ padding:6px 10px; font-size:12px; border-radius:8px; }
+
+.tagrow{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px; }
+.tagchip{ font-family:'IBM Plex Mono',monospace; font-size:11px; padding:5px 10px; border-radius:999px; border:1px solid var(--line); background:var(--paper); cursor:pointer; color:var(--ink-soft); }
+.tagchip.active{ background:var(--mustard); border-color:var(--mustard); color:#2b2200; }
+
+.recipe-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:14px; }
+.card{ background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; cursor:grab; display:flex; flex-direction:column; }
+.card:active{ cursor:grabbing; }
+.card .thumb{ width:100%; height:110px; object-fit:cover; display:block; background:#EAEDE4; }
+.card .thumb-empty{ width:100%; height:110px; background:linear-gradient(135deg,#EAEDE4,#F1F3ED); display:flex; align-items:center; justify-content:center; color:var(--ink-soft); font-size:11px; font-family:'IBM Plex Mono',monospace; }
+.card .body{ padding:14px; display:flex; flex-direction:column; gap:8px; flex:1; }
+.card h3{ font-size:16px; color:var(--ink); line-height:1.25; }
+.card .meta{ font-size:12px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace; }
+.card .tags{ display:flex; gap:5px; flex-wrap:wrap; }
+.card .tags span{ font-size:10px; background:#EAEDE4; color:var(--sage-dark); padding:2px 7px; border-radius:999px; font-family:'IBM Plex Mono',monospace; }
+.card .kcal{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--sage-dark); font-weight:600; margin-top:auto; }
+.card-actions{ display:flex; gap:6px; }
+.card-actions button{ flex:1; font-size:12px; padding:7px 8px; }
+
+.empty{ text-align:center; padding:60px 20px; color:var(--ink-soft); }
+.empty h3{ color:var(--ink); margin-bottom:6px; }
+
+.week-nav{ display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+.week-nav button{ background:var(--paper); border:1px solid var(--line); border-radius:8px; width:34px; height:34px; cursor:pointer; font-size:16px; }
+.week-nav .label{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-soft); }
+.hint{ font-size:13px; color:var(--ink-soft); margin:-8px 0 16px; }
+
+.plan-days{ display:flex; flex-direction:column; gap:10px; }
+.day-card{ background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:12px 14px; }
+.day-card.today{ border:2px solid var(--sage); box-shadow:0 0 0 3px rgba(63,90,69,0.12); }
+.day-card.today .day-card-head h3{ color:var(--sage); }
+.today-badge{ font-family:'IBM Plex Mono',monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:.04em; color:#fff; background:var(--sage); border-radius:999px; padding:2px 7px; margin-left:6px; vertical-align:middle; }
+.day-card-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+.day-card-head h3{ font-size:16px; color:var(--sage-dark); }
+.day-card-head .sub{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--ink-soft); margin-left:6px; }
+.day-card-head .kcal-total{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft); }
+.day-card-head .kcal-total b{ color:var(--sage-dark); }
+.meal-row{ display:grid; grid-template-columns: 68px 1fr; gap:8px; align-items:stretch; margin-bottom:6px; }
+.meal-row:last-child{ margin-bottom:0; }
+.meal-label{ display:flex; align-items:center; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--ink-soft); text-transform:uppercase; }
+.slot{ background:#fff; border:1px dashed var(--line); border-radius:10px; min-height:44px; padding:7px 10px; display:flex; align-items:center; justify-content:flex-start; text-align:left; font-size:13px; color:#B9B9A9; cursor:pointer; transition:.12s; }
+.slot:hover{ border-color:var(--sage); }
+.slot.filled{ border-style:solid; flex-direction:row; align-items:center; justify-content:space-between; gap:8px; cursor:default; padding-right:6px; }
+.slot.filled .slot-content{ flex:1; cursor:pointer; display:flex; flex-direction:column; gap:1px; min-width:0; }
+.slot.filled .rname{ color:var(--ink); font-weight:600; font-size:13px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.slot.filled .rkcal{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--sage-dark); }
+.slot-actions{ display:flex; gap:4px; flex-shrink:0; }
+.slot-actions button{ width:26px; height:26px; border-radius:7px; border:1px solid var(--line); background:#fff; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--ink-soft); }
+.slot-actions button:hover{ border-color:var(--sage); color:var(--sage-dark); }
+.slot-actions button.rm-btn:hover{ border-color:var(--danger); color:var(--danger); }
+
+.shop-section{ margin-top:26px; }
+.shop-section h2{ font-size:19px; color:var(--sage-dark); margin-bottom:4px; }
+.shop-empty{ color:var(--ink-soft); font-size:13px; padding:14px 0; }
+.shop-list{ display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+.shop-item{ display:flex; align-items:center; gap:10px; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:14px; cursor:pointer; }
+.shop-item input[type="checkbox"]{ width:18px; height:18px; accent-color:var(--sage); flex-shrink:0; }
+.shop-item .txt{ flex:1; }
+.shop-item.checked .txt{ text-decoration:line-through; color:var(--ink-soft); }
+.shop-item .qty{ font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--sage-dark); }
+.shop-item.checked .qty{ color:var(--ink-soft); }
+.shop-reset{ margin-top:10px; }
+
+.overlay{ position:fixed; inset:0; background:rgba(38,38,32,.45); display:none; align-items:flex-start; justify-content:center; padding:24px 12px; overflow-y:auto; z-index:50; }
+.overlay.open{ display:flex; }
+.modal{ background:var(--paper); border-radius:18px; padding:24px; width:100%; max-width:520px; margin-top:20px; }
+.modal h2{ font-size:22px; margin-bottom:16px; color:var(--sage-dark); }
+.field{ margin-bottom:12px; }
+.field label{ display:block; font-size:11px; font-family:'IBM Plex Mono',monospace; text-transform:uppercase; color:var(--ink-soft); margin-bottom:4px; letter-spacing:.03em; }
+.field input, .field textarea, .field select{ width:100%; padding:9px 11px; border-radius:8px; border:1px solid var(--line); font-family:'Inter'; font-size:14px; background:#fff; }
+.field textarea{ resize:vertical; min-height:70px; }
+.row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.row4{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.nutrition-box{ border:2px solid var(--ink); border-radius:2px; padding:10px 12px; background:#fff; margin-top:4px; }
+.nutrition-box .title{ font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:13px; border-bottom:6px solid var(--ink); padding-bottom:4px; margin-bottom:6px; text-transform:uppercase; }
+.modal-actions{ display:flex; justify-content:space-between; margin-top:18px; gap:10px; }
+.modal-actions .right{ display:flex; gap:8px; }
+
+.picker-list{ display:flex; flex-direction:column; gap:6px; max-height:340px; overflow-y:auto; margin-top:8px; }
+.picker-row{ display:flex; gap:10px; align-items:center; padding:8px 10px; border:1px solid var(--line); border-radius:8px; cursor:pointer; font-size:13.5px; }
+.picker-row:hover{ border-color:var(--sage); }
+.picker-row img{ width:38px; height:38px; border-radius:6px; object-fit:cover; flex-shrink:0; background:#EAEDE4; }
+.picker-row .txt{ flex:1; }
+.picker-row .sm{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft); }
+
+.ing-row{ display:grid; grid-template-columns: 70px 70px 1fr 30px; gap:6px; margin-bottom:6px; align-items:center; }
+.ing-row input{ padding:7px 8px; font-size:13px; }
+.ing-row .rm{ background:none; border:none; color:var(--danger); font-size:16px; cursor:pointer; padding:0; }
+.add-ing-btn{ margin-top:2px; }
+
+.img-upload{ display:flex; align-items:center; gap:12px; }
+.img-preview{ width:72px; height:72px; border-radius:10px; object-fit:cover; background:#EAEDE4; border:1px solid var(--line); }
+.img-preview-empty{ width:72px; height:72px; border-radius:10px; background:#EAEDE4; border:1px dashed var(--line); display:flex; align-items:center; justify-content:center; color:var(--ink-soft); font-size:10px; font-family:'IBM Plex Mono',monospace; text-align:center; }
+
+.scaler{ display:flex; align-items:center; gap:10px; margin:14px 0; }
+.scaler button{ width:32px; height:32px; border-radius:8px; border:1px solid var(--line); background:#fff; font-size:16px; cursor:pointer; }
+.scaler .count{ font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:600; min-width:90px; text-align:center; }
+.detail-image{ width:100%; max-height:220px; object-fit:cover; border-radius:12px; margin-bottom:14px; }
+.builtin-note{ font-size:11.5px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace; margin-top:2px; }
+
+@media (max-width:640px){
+  .row2{ grid-template-columns:1fr; }
+  header.top h1{ font-size:22px; }
+  .ing-row{ grid-template-columns: 62px 55px 1fr 26px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div>
+      <span class="eyebrow">Küchennotizbuch</span>
+      <h1>Rezepte & Wochenplan</h1>
+    </div>
+    <button class="btn btn-primary" id="newRecipeBtn">+ Neues Rezept</button>
+  </header>
+
+  <div class="sync-badge"><span class="sync-dot" id="syncDot"></span><span id="syncText">verbinde…</span></div>
+
+  <nav class="tabs">
+    <button class="active" data-view="recipes">Rezepte</button>
+    <button data-view="plan">Wochenplan</button>
+  </nav>
+
+  <section class="view active" id="view-recipes">
+    <div class="toolbar"><input type="search" id="searchInput" placeholder="Rezept suchen…"></div>
+    <div class="tagrow" id="tagRow"></div>
+    <div class="recipe-grid" id="recipeGrid"></div>
+  </section>
+
+  <section class="view" id="view-plan">
+    <div class="week-nav">
+      <button id="prevWeek">‹</button>
+      <span class="label" id="weekLabel"></span>
+      <button id="nextWeek">›</button>
+    </div>
+    <p class="hint">Auf einen Slot tippen, um ein Rezept auszuwählen oder zu ändern. Änderungen synchronisieren automatisch zwischen allen Geräten.</p>
+    <div class="plan-days" id="plannerDays"></div>
+
+    <div class="shop-section">
+      <h2>Einkaufsliste</h2>
+      <p class="hint" style="margin:2px 0 0;">Alle Zutaten der eingeplanten Rezepte dieser Woche, zusammengefasst und abhakbar.</p>
+      <div id="shoppingList"></div>
+      <button class="btn btn-ghost btn-sm shop-reset" id="resetShopBtn">Häkchen zurücksetzen</button>
+    </div>
+  </section>
+
+</div>
+
+<div class="overlay" id="recipeOverlay">
+  <div class="modal">
+    <h2 id="recipeModalTitle">Neues Rezept</h2>
+    <input type="hidden" id="recipeId">
+    <p class="builtin-note" id="builtinNote" style="display:none;">Eingebaute Rezepte lassen sich nur ansehen. Lege eine eigene Kopie an, um sie zu bearbeiten.</p>
+
+    <div class="field"><label>Bild</label>
+      <div class="img-upload">
+        <img id="imgPreview" class="img-preview" style="display:none;">
+        <div id="imgPreviewEmpty" class="img-preview-empty">kein Bild</div>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <input type="file" id="f-image" accept="image/*">
+          <button class="btn btn-ghost btn-sm" id="removeImageBtn" type="button" style="display:none;">Bild entfernen</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="field"><label>Name</label><input id="f-name" placeholder="z. B. Linsen-Curry"></div>
+    <div class="row2">
+      <div class="field"><label>Portionen (Basis)</label><input id="f-servings" type="number" min="1" value="2"></div>
+      <div class="field"><label>Zubereitungszeit (Min)</label><input id="f-time" type="number" min="0" value="30"></div>
+    </div>
+    <div class="field"><label>Tags (Komma-getrennt)</label><input id="f-tags" placeholder="vegetarisch, schnell, meal-prep"></div>
+
+    <div class="field">
+      <label>Zutaten (für die oben angegebene Basis-Portionszahl)</label>
+      <div id="ingRows"></div>
+      <button class="btn btn-ghost btn-sm add-ing-btn" id="addIngRowBtn" type="button">+ Zutat</button>
+    </div>
+
+    <div class="field"><label>Zubereitung</label><textarea id="f-instructions" placeholder="Kurze Anleitung…"></textarea></div>
+
+    <div class="nutrition-box">
+      <div class="title">Nährwerte pro Portion</div>
+      <div class="row4">
+        <div class="field"><label>Kcal</label><input id="f-kcal" type="number" min="0"></div>
+        <div class="field"><label>Protein g</label><input id="f-protein" type="number" min="0"></div>
+        <div class="field"><label>Kohlenh. g</label><input id="f-carbs" type="number" min="0"></div>
+        <div class="field"><label>Fett g</label><input id="f-fat" type="number" min="0"></div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="deleteRecipeBtn" style="display:none;">Löschen</button>
+      <div class="right">
+        <button class="btn btn-ghost" id="cancelRecipeBtn">Abbrechen</button>
+        <button class="btn btn-primary" id="saveRecipeBtn">Speichern</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="detailOverlay">
+  <div class="modal">
+    <img id="detailImage" class="detail-image" style="display:none;">
+    <h2 id="detailTitle"></h2>
+    <div class="meta" id="detailMeta" style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);margin-bottom:6px;"></div>
+    <div class="nutrition-box" id="detailNutrition"></div>
+    <div class="scaler">
+      <span style="font-size:11px; font-family:'IBM Plex Mono',monospace; text-transform:uppercase; color:var(--ink-soft);">Portionen</span>
+      <button id="scaleDown" type="button">–</button>
+      <span class="count" id="scaleCount">2 Portionen</span>
+      <button id="scaleUp" type="button">+</button>
+    </div>
+    <h3 style="font-size:14px;margin:6px 0 6px;">Zutaten</h3>
+    <div id="detailIngredients" style="font-size:13.5px;"></div>
+    <h3 style="font-size:14px;margin:16px 0 6px;">Zubereitung</h3>
+    <div id="detailInstructions" style="font-size:13.5px;white-space:pre-line;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="closeDetailBtn">Schließen</button>
+      <div class="right">
+        <button class="btn btn-ghost" id="editFromDetailBtn">Bearbeiten</button>
+        <button class="btn btn-primary" id="planFromDetailBtn">Einplanen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="pickerOverlay">
+  <div class="modal">
+    <h2>Einplanen</h2>
+    <div class="field"><label>Tag</label><select id="pickDay"></select></div>
+    <div class="field"><label>Mahlzeit</label>
+      <select id="pickMeal">
+        <option value="fruehstueck">Frühstück</option>
+        <option value="mittag">Mittag</option>
+        <option value="abend">Abend</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="cancelPickerBtn">Abbrechen</button>
+      <div class="right"><button class="btn btn-primary" id="confirmPickerBtn">In Plan eintragen</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="slotPickerOverlay">
+  <div class="modal">
+    <h2 id="slotPickerTitle">Rezept wählen</h2>
+    <input type="search" id="slotPickerSearch" placeholder="Rezept suchen…" style="width:100%; padding:9px 11px; border-radius:8px; border:1px solid var(--line); font-size:14px;">
+    <div class="picker-list" id="slotPickerList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="clearSlotBtn" style="display:none;">Slot leeren</button>
+      <div class="right"><button class="btn btn-ghost" id="cancelSlotPickerBtn">Abbrechen</button></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ==== Firebase ====
+const firebaseConfig = {
+  apiKey: "AIzaSyDun9ho_VO5d5ngofMP2lNOLM-aDeW6w2E",
+  authDomain: "rezeptbuch-3e162.firebaseapp.com",
+  projectId: "rezeptbuch-3e162",
+  storageBucket: "rezeptbuch-3e162.firebasestorage.app",
+  messagingSenderId: "854031476447",
+  appId: "1:854031476447:web:f0fcd493c0c7845eb0eb6a"
+};
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+
+// ==== Constants ====
+const DAYS = ['mo','di','mi','do','fr','sa','so'];
+const DAY_LABELS = {mo:'Montag',di:'Dienstag',mi:'Mittwoch',do:'Donnerstag',fr:'Freitag',sa:'Samstag',so:'Sonntag'};
+const MEALS = ['fruehstueck','mittag','abend'];
+const MEAL_LABELS = {fruehstueck:'Frühst.', mittag:'Mittag', abend:'Abend'};
+
+// ==== Built-in recipes (edit here / ask Claude to update, then redeploy) ====
+const BUILTIN_RECIPES = [
+{ id:'b-kartoffel-curry', name:'Kartoffel-Curry mit Stangenbohnen', image:'https://www.madamecuisine.de/wp-content/uploads/2023/10/kartoffel-curry-featured2.jpg', servings:2, time:45, tags:['vegetarisch','curry','asiatisch','herbst'],
+  ingredients:[{amount:1,unit:'',name:'Gemüsezwiebel'},{amount:1,unit:'Zehe',name:'Knoblauch'},{amount:2,unit:'cm',name:'frischer Ingwer'},{amount:200,unit:'g',name:'breite Stangenbohnen'},{amount:200,unit:'g',name:'festkochende Kartoffeln'},{amount:1,unit:'',name:'rote Paprika'},{amount:1,unit:'EL',name:'Kokosöl'},{amount:2,unit:'TL',name:'Currypulver'},{amount:1,unit:'TL',name:'Kurkuma'},{amount:400,unit:'ml',name:'Kokosmilch'},{amount:1,unit:'EL',name:'Cocos Aminos'},{amount:0.25,unit:'TL',name:'Chiliflocken (optional)'},{amount:1,unit:'TL',name:'brauner Zucker'},{amount:null,unit:'',name:'Salz, Pfeffer'},{amount:null,unit:'',name:'Koriander, Cashews zum Servieren'},{amount:null,unit:'',name:'Basmati-Reis zum Servieren'}],
+  instructions:['Zwiebel würfeln, Knoblauch und Ingwer fein hacken.','Bohnen putzen, in Stücke schneiden, 2-3 Min. blanchieren.','Kartoffeln würfeln, ca. 10 Min. vorgaren.','Paprika in Streifen schneiden.','Kokosöl erhitzen, Zwiebel/Ingwer/Knoblauch andünsten, Curry und Kurkuma mitrösten.','Paprika zugeben, etwas Kokosmilch dazu, kurz köcheln.','Kartoffeln und restliche Kokosmilch zugeben, 10 Min. köcheln, Bohnen in letzten 2 Min. zugeben.','Mit Cocos Aminos, Salz, Pfeffer, Zucker, Chili abschmecken.','Mit Koriander, Cashews servieren, dazu Basmati-Reis.'].join('\n'),
+  nutrition:{kcal:620,protein:null,carbs:null,fat:null} },
+{ id:'b-couscous', name:'Couscous', image:null, servings:null, time:null, tags:[], ingredients:[], instructions:'', nutrition:{kcal:null,protein:null,carbs:null,fat:null} },
+{ id:'b-gemueselasagne', name:'Gemüselasagne', image:null, servings:null, time:null, tags:[], ingredients:[], instructions:'', nutrition:{kcal:null,protein:null,carbs:null,fat:null} },
+{ id:'b-veggie-schnitzel', name:'Veggie Schnitzel mit Kartoffelsalat', image:null, servings:null, time:null, tags:[], ingredients:[], instructions:'', nutrition:{kcal:null,protein:null,carbs:null,fat:null} },
+{ id:'b-quiche-spinat', name:'Quiche mit Spinat & Champignons', image:'https://www.madamecuisine.de/wp-content/uploads/2024/02/quiche-spinat-champignons-featured.jpg', servings:4, time:50, tags:['vegetarisch','quiche','französisch'],
+  ingredients:[{amount:250,unit:'g',name:'Vollkornmehl'},{amount:125,unit:'g',name:'kalte Butter'},{amount:0.5,unit:'TL',name:'Salz'},{amount:4,unit:'EL',name:'sehr kaltes Wasser'},{amount:400,unit:'g',name:'Champignons'},{amount:450,unit:'g',name:'TK-Blattspinat, aufgetaut'},{amount:100,unit:'g',name:'Rosenkohl, geraspelt'},{amount:2,unit:'Zehe',name:'Knoblauch'},{amount:1,unit:'EL',name:'Olivenöl'},{amount:1,unit:'TL',name:'Butter'},{amount:1,unit:'TL',name:'Thymian, getrocknet'},{amount:1,unit:'TL',name:'Salbei, getrocknet'},{amount:100,unit:'g',name:'Crème fraîche'},{amount:50,unit:'ml',name:'Sahne'},{amount:4,unit:'',name:'Bio-Eier'},{amount:null,unit:'',name:'Salz, Pfeffer, Muskat'},{amount:100,unit:'g',name:'Bergkäse, gerieben'}],
+  instructions:['Mürbeteig-Zutaten verkneten, ausrollen, in Form geben, kalt stellen.','Champignons in Scheiben, Spinat ausdrücken, Rosenkohl abtropfen.','Gemüse mit Knoblauch in Öl/Butter anbraten, würzen.','Crème fraîche, Sahne, Eier verrühren, würzen, Käse untermischen.','Gemüse auf Teig verteilen, Guss darüber.','Bei 200°C ca. 30 Min. backen bis goldbraun.'].join('\n'),
+  nutrition:{kcal:480,protein:null,carbs:null,fat:null} },
+{ id:'b-gemuese-gratin', name:'Einfaches Gemüse-Gratin', image:'https://www.madamecuisine.de/wp-content/uploads/2024/04/gemuese-gratin-featured.jpg', servings:4, time:65, tags:['vegetarisch','gratin','beilage'],
+  ingredients:[{amount:400,unit:'g',name:'Karotten'},{amount:250,unit:'g',name:'Zucchini'},{amount:200,unit:'g',name:'Champignons'},{amount:3,unit:'',name:'Zweige Thymian'},{amount:1,unit:'TL',name:'Salbei, getrocknet'},{amount:2,unit:'Zehe',name:'Knoblauch'},{amount:200,unit:'ml',name:'Schlagsahne'},{amount:150,unit:'ml',name:'Milch'},{amount:null,unit:'',name:'Salz, Pfeffer, Muskat'},{amount:30,unit:'g',name:'Parmesan, gerieben'},{amount:null,unit:'',name:'etwas Butter'}],
+  instructions:['Gemüse in dünne Scheiben hobeln.','Fächerartig in gefettete Form schichten, mit Kräutern bestreuen.','Sahne/Milch mit Knoblauch aufkochen, würzen, über das Gemüse gießen.','Parmesan darüber, mit Folie abgedeckt 20 Min. garen.','Folie ab, weitere 25 Min. garen bis weich und goldbraun.'].join('\n'),
+  nutrition:{kcal:440,protein:null,carbs:null,fat:null} },
+{ id:'b-gnocchi-pfanne', name:'Gnocchi-Pfanne mit Gemüse und Mozzarella', image:'https://www.madamecuisine.de/wp-content/uploads/2019/06/gnocchi-pfanne-mit-gemuese-mozzarella-featured.jpg', servings:2, time:35, tags:['vegetarisch','italienisch','pasta'],
+  ingredients:[{amount:400,unit:'g',name:'Gnocchi'},{amount:1,unit:'',name:'Schalotte'},{amount:1,unit:'',name:'Zucchini'},{amount:300,unit:'g',name:'gemischte Tomaten'},{amount:3,unit:'EL',name:'Olivenöl'},{amount:1,unit:'Zehe',name:'Knoblauch'},{amount:2,unit:'EL',name:'schwarze Oliven'},{amount:null,unit:'',name:'Salz, Pfeffer'},{amount:null,unit:'',name:'Chiliflocken'},{amount:200,unit:'g',name:'Burrata/Mozzarella'},{amount:null,unit:'',name:'Basilikum'}],
+  instructions:['Schalotte, Knoblauch, Zucchini andünsten.','Gnocchi zugeben, goldbraun braten.','Tomaten und Oliven zugeben, würzen.','Käse darüber, im Ofen kurz gratinieren.','Mit Basilikum servieren.'].join('\n'),
+  nutrition:{kcal:560,protein:null,carbs:null,fat:null} },
+{ id:'b-weisse-bohnen', name:'Cremige weiße Bohnen in Tomatensauce', image:'https://www.madamecuisine.de/wp-content/uploads/2026/04/weisse-bohnen-pfanne-featured.jpg', servings:2, time:35, tags:['vegetarisch','schnell','bohnen'],
+  ingredients:[{amount:2,unit:'',name:'Schalotten'},{amount:2,unit:'EL',name:'Olivenöl'},{amount:7,unit:'',name:'getrocknete Softtomaten'},{amount:125,unit:'g',name:'Kirschtomaten'},{amount:1,unit:'TL',name:'Oregano'},{amount:0.5,unit:'TL',name:'geräuchertes Paprikapulver'},{amount:null,unit:'',name:'Salz, Pfeffer'},{amount:1.5,unit:'EL',name:'Tomatenmark'},{amount:75,unit:'ml',name:'Weißwein'},{amount:100,unit:'ml',name:'Gemüsebrühe'},{amount:120,unit:'ml',name:'Schlagsahne'},{amount:400,unit:'g',name:'Cannellini-Bohnen'},{amount:50,unit:'g',name:'Babyspinat'},{amount:1,unit:'EL',name:'Kokos-Aminos'}],
+  instructions:['Schalotten andünsten, Tomaten mitdünsten.','Würzen, Tomatenmark einrühren, mit Wein ablöschen, Brühe zugeben, köcheln.','Bohnen und Spinat zugeben, kurz köcheln.','Sahne einrühren, abschmecken.'].join('\n'),
+  nutrition:{kcal:420,protein:null,carbs:null,fat:null} },
+{ id:'b-tuerkische-pasta', name:'Türkische Pasta mit Linsen', image:'https://www.madamecuisine.de/wp-content/uploads/2026/05/tuerkische-linsen-pasta-featured.jpg', servings:4, time:45, tags:['vegetarisch','türkisch','pasta'],
+  ingredients:[{amount:400,unit:'g',name:'Linsen aus der Dose'},{amount:1,unit:'',name:'kleine Zwiebel'},{amount:4.5,unit:'',name:'getrocknete Tomaten'},{amount:250,unit:'g',name:'Rispentomaten'},{amount:1,unit:'EL',name:'Olivenöl'},{amount:0.5,unit:'TL',name:'Kreuzkümmel'},{amount:0.25,unit:'TL',name:'geräuchertes Paprikapulver'},{amount:1,unit:'EL',name:'Kokos-Aminos'},{amount:null,unit:'',name:'Salz, Pfeffer'},{amount:175,unit:'g',name:'griechischer Joghurt'},{amount:1,unit:'Zehe',name:'Knoblauch'},{amount:1,unit:'EL',name:'Zitronensaft'},{amount:1,unit:'EL',name:'Dill'},{amount:1,unit:'EL',name:'Petersilie'},{amount:400,unit:'g',name:'kurze Pasta'},{amount:100,unit:'g',name:'TK-Erbsen'},{amount:2,unit:'EL',name:'Butter'},{amount:0.5,unit:'TL',name:'geräuchertes Paprikapulver'}],
+  instructions:['Linsen anbraten bis knusprig, würzen, Tomaten mitdünsten.','Joghurt mit Zitrone, Knoblauch, Kräutern verrühren.','Butter mit Paprika verrühren.','Pasta mit Erbsen kochen.','Alles schichten: Pasta, Joghurt, Linsen-Gemüse, Paprika-Butter.'].join('\n'),
+  nutrition:{kcal:500,protein:null,carbs:null,fat:null} },
+{ id:'b-peruanische-pasta', name:'Peruanische Pasta (Tallarines Verdes)', image:'https://www.madamecuisine.de/wp-content/uploads/2026/05/peruanische-pasta-featured.jpg', servings:4, time:30, tags:['vegetarisch','peruanisch','pasta'],
+  ingredients:[{amount:200,unit:'g',name:'Blattspinat'},{amount:30,unit:'g',name:'Basilikum'},{amount:1,unit:'Zehe',name:'Knoblauch'},{amount:30,unit:'g',name:'Pekannüsse'},{amount:30,unit:'g',name:'Parmesan'},{amount:50,unit:'ml',name:'Olivenöl'},{amount:75,unit:'ml',name:'Gemüsebrühe'},{amount:null,unit:'',name:'Salz, Pfeffer'},{amount:500,unit:'g',name:'Spaghetti'}],
+  instructions:['Pekannüsse rösten.','Spinat blanchieren, abschrecken, ausdrücken.','Spaghetti im Spinatwasser kochen.','Alle Sauce-Zutaten pürieren.','Pasta mit Sauce vermischen, mit Parmesan servieren.'].join('\n'),
+  nutrition:{kcal:560,protein:null,carbs:null,fat:null} },
+{ id:'b-blumenkohl-caponata', name:'Blumenkohl-Caponata', image:'https://www.madamecuisine.de/wp-content/uploads/2026/07/blumenkohl-caponata-featured.jpg', servings:2, time:70, tags:['vegan','italienisch','gemüse'],
+  ingredients:[{amount:400,unit:'g',name:'Blumenkohl'},{amount:1,unit:'',name:'rote Zwiebel'},{amount:3,unit:'',name:'Stangen Staudensellerie'},{amount:2,unit:'EL',name:'Olivenöl'},{amount:2,unit:'EL',name:'Apfelessig'},{amount:400,unit:'g',name:'stückige Tomaten'},{amount:50,unit:'g',name:'Oliven'},{amount:2,unit:'EL',name:'Rosinen'},{amount:1,unit:'EL',name:'Kapern'},{amount:1,unit:'EL',name:'Balsamico'},{amount:null,unit:'',name:'Salz, Pfeffer'}],
+  instructions:['Gemüse mit Öl/Essig auf Blech rösten (25 Min., 220°C).','Tomaten, Oliven, Rosinen, Kapern zugeben, weitere 20-25 Min. bei 200°C garen.','Mit Balsamico und Selleriegrün abschmecken.'].join('\n'),
+  nutrition:{kcal:420,protein:null,carbs:null,fat:null} },
+{ id:'b-tofu-schaschlik', name:'Scharfes Tofu-Pilz-Schaschlik', image:'https://images.lecker.de/scharfes-tofu-pilz-schaschlik,id=621eff27,b=lecker,w=1600,rm=sk.jpeg', servings:null, time:45, tags:['vegan','vegetarisch','grillen'],
+  ingredients:[{amount:100,unit:'ml',name:'Sojasoße'},{amount:1,unit:'EL',name:'Sambal Oelek'},{amount:80,unit:'ml',name:'Aceto balsamico'},{amount:4,unit:'EL',name:'Agavendicksaft'},{amount:2,unit:'TL',name:'Räucherpaprika'},{amount:400,unit:'g',name:'Räuchertofu'},{amount:1,unit:'',name:'Paprikaschote'},{amount:2,unit:'',name:'Zwiebeln'},{amount:100,unit:'g',name:'kleine Champignons'},{amount:3,unit:'',name:'Lauchzwiebeln'},{amount:4,unit:'EL',name:'Rapsöl'},{amount:800,unit:'g',name:'Tomaten in Stücken'},{amount:null,unit:'',name:'Cayennepfeffer'}],
+  instructions:['Marinade verrühren, aufkochen, über Tofuwürfel geben, 2 Std. marinieren.','Gemüse schneiden, mit Tofu auf Spieße stecken.','Spieße anbraten, herausnehmen.','Lauchzwiebeln anschwitzen, mit Marinade ablöschen, Tomaten zugeben, köcheln.','Spieße in der Soße erhitzen.'].join('\n'),
+  nutrition:{kcal:410,protein:22,carbs:31,fat:21} },
+{ id:'b-linsen-feta', name:'Linsen-Feta-Frikadellen auf Pilzrahm', image:'https://images.lecker.de/linsen-feta-frikadellen-auf-pilzrahm-f10004404,id=c88df5fc,b=lecker,w=1600,rm=sk.jpeg', servings:null, time:50, tags:['vegetarisch','frikadellen'],
+  ingredients:[{amount:200,unit:'g',name:'rote Linsen'},{amount:1,unit:'',name:'Zwiebel'},{amount:1,unit:'',name:'Knoblauchzehe'},{amount:3,unit:'',name:'Stiele Thymian'},{amount:3,unit:'EL',name:'Öl'},{amount:150,unit:'g',name:'Feta-Käse'},{amount:1,unit:'',name:'Ei (Gr. M)'},{amount:8,unit:'EL',name:'Semmelbrösel'},{amount:null,unit:'',name:'Salz, Pfeffer'},{amount:1,unit:'',name:'Schalotte'},{amount:400,unit:'g',name:'Champignons'},{amount:1,unit:'EL',name:'Butter'},{amount:50,unit:'ml',name:'Weißwein'},{amount:200,unit:'g',name:'Schlagsahne'},{amount:2,unit:'',name:'Stiele Petersilie'}],
+  instructions:['Linsen garen, mit Feta, Zwiebel, Knoblauch, Thymian, Ei, Semmelbrösel verkneten.','Champignonrahm zubereiten (Schalotte, Champignons, Weißwein, Sahne).','Frikadellen formen und braten.','Mit Pilzrahm anrichten.'].join('\n'),
+  nutrition:{kcal:628,protein:27,carbs:44,fat:37} },
+{ id:'b-quinoasalat', name:'Quinoasalat mit gekochtem Ei, Bohnen und Gurke', image:'https://images.lecker.de/quinoasalat-mit-gekochtem-ei-bohnen-und-gurke,id=2c34e534,b=lecker,w=1600,ca=1.60,30.19,99.60,85.20,rm=sk.jpeg', servings:null, time:30, tags:['vegetarisch','salat'],
+  ingredients:[{amount:200,unit:'g',name:'Quinoa'},{amount:null,unit:'',name:'Salz'},{amount:4,unit:'',name:'Eier (Gr. M)'},{amount:100,unit:'g',name:'Bohnen'},{amount:100,unit:'g',name:'Zuckerschoten'},{amount:100,unit:'g',name:'TK-Erbsen'},{amount:100,unit:'g',name:'Salatgurke'},{amount:5,unit:'',name:'Stiele Kerbel'},{amount:1,unit:'',name:'Knoblauchzehe'},{amount:1,unit:'EL',name:'Senf'},{amount:1,unit:'',name:'Eigelb'},{amount:2,unit:'EL',name:'Weinessig'},{amount:null,unit:'',name:'Pfeffer'},{amount:4,unit:'EL',name:'Olivenöl'}],
+  instructions:['Quinoa garen und quellen lassen.','Eier kochen, Gemüse blanchieren.','Vinaigrette aus Senf, Eigelb, Kerbel, Knoblauch, Essig, Öl anrühren.','Alles vermengen, mit Eiern anrichten.'].join('\n'),
+  nutrition:{kcal:420,protein:18,carbs:39,fat:21} },
+{ id:'b-quinoa-bratlinge', name:'Einfache Quinoa-Bratlinge', image:'https://images.lecker.de/einfache-quinoa-bratlinge-f7577104,id=b334b32a,b=lecker,w=1600,rm=sk.jpeg', servings:null, time:55, tags:['vegetarisch','bratlinge'],
+  ingredients:[{amount:200,unit:'g',name:'Quinoa'},{amount:null,unit:'',name:'Salz'},{amount:0.5,unit:'Bund',name:'Petersilie'},{amount:2,unit:'',name:'Schalotten'},{amount:1,unit:'',name:'Knoblauchzehe'},{amount:2,unit:'',name:'Eier'},{amount:2,unit:'EL',name:'Speisestärke'},{amount:null,unit:'',name:'Pfeffer'},{amount:3,unit:'EL',name:'Sonnenblumenöl'},{amount:200,unit:'g',name:'Magerquark'},{amount:1,unit:'',name:'Zitrone (Saft)'}],
+  instructions:['Quinoa garen und quellen lassen.','Mit Petersilie, Schalotten, Knoblauch, Eiern, Stärke verkneten, würzen.','Bratlinge formen und braten.','Dip aus Quark und Zitronensaft anrühren, mit Petersiliensalat servieren.'].join('\n'),
+  nutrition:{kcal:414,protein:18,carbs:41,fat:19} }
+];
+
+// ==== State ====
+let customRecipes = [];
+let recipes = [];
+let currentWeekStart = getMonday(new Date());
+let currentPlan = emptyPlan();
+let checkedItems = [];
+let unsubscribeWeek = null;
+let activeTagFilter = null;
+let planTargetRecipeId = null;
+let slotTarget = null;
+let detailScaleServings = null;
+let formImageDataUrl = null;
+let ingRowCounter = 0;
+let editingBuiltin = false;
+
+function getMonday(d){ const date=new Date(d); const day=date.getDay(); const diff=date.getDate()-(day===0?6:day-1); date.setDate(diff); date.setHours(0,0,0,0); return date; }
+function fmtDate(d){ return d.toISOString().slice(0,10); }
+function addDays(d,n){ const nd=new Date(d); nd.setDate(nd.getDate()+n); return nd; }
+function uid(){ return 'r'+Date.now()+Math.random().toString(16).slice(2,8); }
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function emptyPlan(){ const p={}; DAYS.forEach(d=>{ p[d]={}; MEALS.forEach(m=>p[d][m]=null); }); return p; }
+function formatScaledAmount(amount, factor){ const scaled=amount*factor; const rounded=Math.round(scaled*100)/100; if(Number.isInteger(rounded)) return String(rounded); return rounded.toFixed(2).replace(/0+$/,'').replace(/\.$/,''); }
+
+// ==== Local (device-only) recipe storage ====
+function loadCustomRecipes(){
+  try{ customRecipes = JSON.parse(localStorage.getItem('customRecipes')||'[]'); }catch(e){ customRecipes = []; }
+}
+function saveCustomRecipes(){
+  try{ localStorage.setItem('customRecipes', JSON.stringify(customRecipes)); }catch(e){ console.error(e); alert('Speichern fehlgeschlagen (lokaler Speicher voll?).'); }
+}
+function rebuildRecipeList(){ recipes = BUILTIN_RECIPES.concat(customRecipes); }
+function isBuiltin(id){ return BUILTIN_RECIPES.some(r=>r.id===id); }
+
+// ==== Firestore sync for plan/shopping list ====
+function attachWeekListener(){
+  if(unsubscribeWeek) unsubscribeWeek();
+  const weekKey = fmtDate(currentWeekStart);
+  setSyncStatus(false);
+  unsubscribeWeek = onSnapshot(doc(db,'weeks',weekKey), (snap)=>{
+    const data = snap.exists() ? snap.data() : {};
+    currentPlan = data.plan || emptyPlan();
+    checkedItems = data.checked || [];
+    renderPlanner();
+    renderShoppingList();
+    setSyncStatus(true);
+  }, (err)=>{
+    console.error('Sync error', err);
+    setSyncStatus(false, true);
+  });
+}
+async function writeWeekDoc(){
+  const weekKey = fmtDate(currentWeekStart);
+  try{ await setDoc(doc(db,'weeks',weekKey), { plan: currentPlan, checked: checkedItems }); }
+  catch(e){ console.error('Schreiben fehlgeschlagen', e); alert('Änderung konnte nicht synchronisiert werden. Internetverbindung prüfen.'); }
+}
+function setSyncStatus(live, error){
+  const dot = document.getElementById('syncDot');
+  const txt = document.getElementById('syncText');
+  if(error){ dot.classList.remove('live'); txt.textContent = 'Sync-Fehler – offline?'; return; }
+  if(live){ dot.classList.add('live'); txt.textContent = 'live synchronisiert'; }
+  else { dot.classList.remove('live'); txt.textContent = 'verbinde…'; }
+}
+
+// ==== Tabs ====
+document.querySelectorAll('.tabs button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+  });
+});
+
+// ==== Recipe grid ====
+function allTags(){ const s=new Set(); recipes.forEach(r=>(r.tags||[]).forEach(t=>s.add(t))); return [...s].sort(); }
+function renderTagRow(){
+  const row = document.getElementById('tagRow'); row.innerHTML='';
+  allTags().forEach(tag=>{
+    const chip=document.createElement('div');
+    chip.className='tagchip'+(activeTagFilter===tag?' active':'');
+    chip.textContent=tag;
+    chip.onclick=()=>{ activeTagFilter = activeTagFilter===tag?null:tag; renderTagRow(); renderRecipeGrid(); };
+    row.appendChild(chip);
+  });
+}
+function renderRecipeGrid(){
+  const grid=document.getElementById('recipeGrid');
+  const q=document.getElementById('searchInput').value.trim().toLowerCase();
+  let list=recipes.filter(r=>r.name.toLowerCase().includes(q));
+  if(activeTagFilter) list=list.filter(r=>(r.tags||[]).includes(activeTagFilter));
+  grid.innerHTML='';
+  if(list.length===0){ grid.innerHTML=`<div class="empty" style="grid-column:1/-1;"><h3>Keine Rezepte gefunden</h3></div>`; return; }
+  list.forEach(r=>{
+    const card=document.createElement('div');
+    card.className='card'; card.draggable=true; card.dataset.id=r.id;
+    const thumb = r.image ? `<img class="thumb" src="${r.image}" onerror="this.outerHTML='&lt;div class=&quot;thumb-empty&quot;&gt;kein Bild&lt;/div&gt;'">` : `<div class="thumb-empty">kein Bild</div>`;
+    card.innerHTML = `
+      ${thumb}
+      <div class="body">
+        <h3>${escapeHtml(r.name)}</h3>
+        <div class="meta">${r.servings||'?'} Portionen · ${r.time||'?'} Min</div>
+        <div class="tags">${(r.tags||[]).map(t=>`<span>${escapeHtml(t)}</span>`).join('')}</div>
+        <div class="kcal">${r.nutrition?.kcal ?? '–'} kcal / Portion</div>
+        <div class="card-actions">
+          <button class="btn btn-ghost" data-action="open">Details</button>
+          <button class="btn btn-primary" data-action="plan">Einplanen</button>
+        </div>
+      </div>`;
+    card.addEventListener('dragstart', e=>e.dataTransfer.setData('text/plain', r.id));
+    card.querySelector('[data-action="open"]').onclick=()=>openDetail(r.id);
+    card.querySelector('[data-action="plan"]').onclick=()=>openPicker(r.id);
+    grid.appendChild(card);
+  });
+}
+document.getElementById('searchInput').addEventListener('input', renderRecipeGrid);
+
+// ==== Recipe form ====
+const recipeOverlay=document.getElementById('recipeOverlay');
+function addIngRow(ing){
+  ing = ing || {amount:'',unit:'',name:''};
+  const rowId='ing'+(ingRowCounter++);
+  const wrap=document.createElement('div'); wrap.className='ing-row'; wrap.dataset.rowId=rowId;
+  wrap.innerHTML = `
+    <input type="number" step="0.25" placeholder="Menge" class="ing-amount" value="${ing.amount ?? ''}">
+    <input type="text" placeholder="Einheit" class="ing-unit" value="${escapeHtml(ing.unit||'')}">
+    <input type="text" placeholder="Zutat" class="ing-name" value="${escapeHtml(ing.name||'')}">
+    <button type="button" class="rm">×</button>`;
+  wrap.querySelector('.rm').onclick=()=>wrap.remove();
+  document.getElementById('ingRows').appendChild(wrap);
+}
+document.getElementById('addIngRowBtn').onclick=()=>addIngRow();
+function collectIngRows(){
+  return [...document.querySelectorAll('#ingRows .ing-row')].map(row=>{
+    const amtVal=row.querySelector('.ing-amount').value;
+    return { amount: amtVal===''?null:parseFloat(amtVal), unit: row.querySelector('.ing-unit').value.trim(), name: row.querySelector('.ing-name').value.trim() };
+  }).filter(i=>i.name);
+}
+document.getElementById('f-image').addEventListener('change', e=>{
+  const file=e.target.files[0]; if(!file) return;
+  if(file.size > 4*1024*1024){ alert('Bild ist recht groß (>4MB). Bitte ein kleineres Bild wählen.'); e.target.value=''; return; }
+  const reader=new FileReader();
+  reader.onload=()=>{ formImageDataUrl=reader.result; updateImagePreview(); };
+  reader.readAsDataURL(file);
+});
+document.getElementById('removeImageBtn').onclick=()=>{ formImageDataUrl=null; document.getElementById('f-image').value=''; updateImagePreview(); };
+function updateImagePreview(){
+  const img=document.getElementById('imgPreview'), empty=document.getElementById('imgPreviewEmpty'), rmBtn=document.getElementById('removeImageBtn');
+  if(formImageDataUrl){ img.src=formImageDataUrl; img.style.display='block'; empty.style.display='none'; rmBtn.style.display='inline-block'; }
+  else { img.style.display='none'; empty.style.display='flex'; rmBtn.style.display='none'; }
+}
+function setFormReadonly(readonly){
+  ['f-name','f-servings','f-time','f-tags','f-instructions','f-kcal','f-protein','f-carbs','f-fat','f-image'].forEach(id=>{
+    document.getElementById(id).disabled = readonly;
+  });
+  document.querySelectorAll('#ingRows input, #ingRows .rm, #addIngRowBtn, #removeImageBtn').forEach(el=>el.disabled=readonly);
+  document.getElementById('saveRecipeBtn').style.display = readonly ? 'none' : 'inline-block';
+  document.getElementById('builtinNote').style.display = readonly ? 'block' : 'none';
+}
+function openRecipeForm(recipe){
+  editingBuiltin = recipe ? isBuiltin(recipe.id) : false;
+  document.getElementById('recipeModalTitle').textContent = recipe ? (editingBuiltin ? 'Rezept ansehen' : 'Rezept bearbeiten') : 'Neues Rezept';
+  document.getElementById('recipeId').value = recipe ? recipe.id : '';
+  document.getElementById('f-name').value = recipe?.name || '';
+  document.getElementById('f-servings').value = recipe?.servings || 2;
+  document.getElementById('f-time').value = recipe?.time || 30;
+  document.getElementById('f-tags').value = (recipe?.tags||[]).join(', ');
+  document.getElementById('f-instructions').value = recipe?.instructions || '';
+  document.getElementById('f-kcal').value = recipe?.nutrition?.kcal ?? '';
+  document.getElementById('f-protein').value = recipe?.nutrition?.protein ?? '';
+  document.getElementById('f-carbs').value = recipe?.nutrition?.carbs ?? '';
+  document.getElementById('f-fat').value = recipe?.nutrition?.fat ?? '';
+  document.getElementById('deleteRecipeBtn').style.display = (recipe && !editingBuiltin) ? 'inline-block' : 'none';
+  document.getElementById('ingRows').innerHTML=''; ingRowCounter=0;
+  (recipe?.ingredients||[]).forEach(ing=>addIngRow(ing));
+  if(!recipe) addIngRow();
+  formImageDataUrl = recipe?.image || null;
+  updateImagePreview();
+  document.getElementById('f-image').value='';
+  setFormReadonly(editingBuiltin);
+  recipeOverlay.classList.add('open');
+}
+document.getElementById('newRecipeBtn').onclick=()=>openRecipeForm(null);
+document.getElementById('cancelRecipeBtn').onclick=()=>recipeOverlay.classList.remove('open');
+document.getElementById('saveRecipeBtn').onclick=()=>{
+  if(editingBuiltin) return;
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){ alert('Bitte einen Namen eingeben.'); return; }
+  const id=document.getElementById('recipeId').value || uid();
+  const data = {
+    id, name, image: formImageDataUrl || null,
+    servings: parseInt(document.getElementById('f-servings').value)||null,
+    time: parseInt(document.getElementById('f-time').value)||null,
+    tags: document.getElementById('f-tags').value.split(',').map(t=>t.trim()).filter(Boolean),
+    ingredients: collectIngRows(),
+    instructions: document.getElementById('f-instructions').value.trim(),
+    nutrition: {
+      kcal: numOrNull(document.getElementById('f-kcal').value),
+      protein: numOrNull(document.getElementById('f-protein').value),
+      carbs: numOrNull(document.getElementById('f-carbs').value),
+      fat: numOrNull(document.getElementById('f-fat').value),
+    }
+  };
+  const idx=customRecipes.findIndex(r=>r.id===id);
+  if(idx>=0) customRecipes[idx]=data; else customRecipes.push(data);
+  saveCustomRecipes(); rebuildRecipeList();
+  recipeOverlay.classList.remove('open');
+  renderTagRow(); renderRecipeGrid();
+};
+function numOrNull(v){ return v===''?null:parseFloat(v); }
+document.getElementById('deleteRecipeBtn').onclick=()=>{
+  const id=document.getElementById('recipeId').value;
+  if(!id || isBuiltin(id)) return;
+  if(!confirm('Rezept wirklich löschen?')) return;
+  customRecipes = customRecipes.filter(r=>r.id!==id);
+  saveCustomRecipes(); rebuildRecipeList();
+  recipeOverlay.classList.remove('open');
+  renderTagRow(); renderRecipeGrid();
+};
+
+// ==== Detail modal ====
+const detailOverlay=document.getElementById('detailOverlay');
+let detailRecipeId=null;
+function openDetail(id){
+  const r=recipes.find(x=>x.id===id); if(!r) return;
+  detailRecipeId=id; detailScaleServings=r.servings||1;
+  const img=document.getElementById('detailImage');
+  if(r.image){ img.src=r.image; img.style.display='block'; img.onerror=()=>{ img.style.display='none'; }; } else { img.style.display='none'; }
+  document.getElementById('detailTitle').textContent=r.name;
+  document.getElementById('detailMeta').textContent=`Basis: ${r.servings||'?'} Portionen · ${r.time||'?'} Min · ${(r.tags||[]).join(', ')}`;
+  const n=r.nutrition||{};
+  document.getElementById('detailNutrition').innerHTML=`
+    <div class="title">Nährwerte pro Portion</div>
+    <div class="row4">
+      <div><b>${n.kcal ?? '–'}</b><br><span style="font-size:10px;color:var(--ink-soft);">kcal</span></div>
+      <div><b>${n.protein ?? '–'}</b><br><span style="font-size:10px;color:var(--ink-soft);">Protein g</span></div>
+      <div><b>${n.carbs ?? '–'}</b><br><span style="font-size:10px;color:var(--ink-soft);">Kohlenh. g</span></div>
+      <div><b>${n.fat ?? '–'}</b><br><span style="font-size:10px;color:var(--ink-soft);">Fett g</span></div>
+    </div>`;
+  document.getElementById('detailInstructions').textContent=r.instructions||'–';
+  renderDetailIngredients(r);
+  detailOverlay.classList.add('open');
+}
+function renderDetailIngredients(r){
+  document.getElementById('scaleCount').textContent=`${detailScaleServings} Portion${detailScaleServings===1?'':'en'}`;
+  const base=r.servings||1, factor=detailScaleServings/base;
+  const box=document.getElementById('detailIngredients');
+  if(!r.ingredients || r.ingredients.length===0){ box.textContent='–'; return; }
+  box.innerHTML=r.ingredients.map(ing=>{
+    if(ing.amount==null) return `<div>${escapeHtml(ing.name)}</div>`;
+    const amt=formatScaledAmount(ing.amount, factor);
+    return `<div>${amt}${ing.unit? ' '+escapeHtml(ing.unit):''} ${escapeHtml(ing.name)}</div>`;
+  }).join('');
+}
+document.getElementById('scaleDown').onclick=()=>{ if(detailScaleServings>1) detailScaleServings--; renderDetailIngredients(recipes.find(x=>x.id===detailRecipeId)); };
+document.getElementById('scaleUp').onclick=()=>{ detailScaleServings++; renderDetailIngredients(recipes.find(x=>x.id===detailRecipeId)); };
+document.getElementById('closeDetailBtn').onclick=()=>detailOverlay.classList.remove('open');
+document.getElementById('editFromDetailBtn').onclick=()=>{ detailOverlay.classList.remove('open'); openRecipeForm(recipes.find(r=>r.id===detailRecipeId)); };
+document.getElementById('planFromDetailBtn').onclick=()=>{ detailOverlay.classList.remove('open'); openPicker(detailRecipeId); };
+
+// ==== Day/meal picker (from card) ====
+const pickerOverlay=document.getElementById('pickerOverlay');
+function openPicker(recipeId){
+  planTargetRecipeId=recipeId;
+  document.getElementById('pickDay').innerHTML = DAYS.map(d=>`<option value="${d}">${DAY_LABELS[d]} – ${fmtDayDate(d)}</option>`).join('');
+  pickerOverlay.classList.add('open');
+}
+document.getElementById('cancelPickerBtn').onclick=()=>pickerOverlay.classList.remove('open');
+document.getElementById('confirmPickerBtn').onclick=async ()=>{
+  const day=document.getElementById('pickDay').value, meal=document.getElementById('pickMeal').value;
+  currentPlan[day][meal]=planTargetRecipeId;
+  await writeWeekDoc();
+  pickerOverlay.classList.remove('open');
+};
+
+// ==== Slot picker (from planner) ====
+const slotPickerOverlay=document.getElementById('slotPickerOverlay');
+function openSlotPicker(day, meal){
+  slotTarget={day, meal};
+  document.getElementById('slotPickerTitle').textContent=`${DAY_LABELS[day]} · ${MEAL_LABELS[meal]}`;
+  document.getElementById('slotPickerSearch').value='';
+  document.getElementById('clearSlotBtn').style.display = currentPlan[day][meal] ? 'inline-block' : 'none';
+  renderSlotPickerList();
+  slotPickerOverlay.classList.add('open');
+}
+function renderSlotPickerList(){
+  const q=document.getElementById('slotPickerSearch').value.trim().toLowerCase();
+  const list=recipes.filter(r=>r.name.toLowerCase().includes(q));
+  const box=document.getElementById('slotPickerList');
+  if(list.length===0){ box.innerHTML=`<div class="empty">Keine Rezepte gefunden.</div>`; return; }
+  box.innerHTML='';
+  list.forEach(r=>{
+    const row=document.createElement('div'); row.className='picker-row';
+    const thumb = r.image ? `<img src="${r.image}" onerror="this.style.visibility='hidden'">` : `<div style="width:38px;height:38px;border-radius:6px;background:#EAEDE4;flex-shrink:0;"></div>`;
+    row.innerHTML = `${thumb}<div class="txt">${escapeHtml(r.name)}<div class="sm">${r.nutrition?.kcal ?? '–'} kcal</div></div>`;
+    row.onclick=async ()=>{
+      currentPlan[slotTarget.day][slotTarget.meal]=r.id;
+      await writeWeekDoc();
+      slotPickerOverlay.classList.remove('open');
+    };
+    box.appendChild(row);
+  });
+}
+document.getElementById('slotPickerSearch').addEventListener('input', renderSlotPickerList);
+document.getElementById('cancelSlotPickerBtn').onclick=()=>slotPickerOverlay.classList.remove('open');
+document.getElementById('clearSlotBtn').onclick=async ()=>{
+  currentPlan[slotTarget.day][slotTarget.meal]=null;
+  await writeWeekDoc();
+  slotPickerOverlay.classList.remove('open');
+};
+
+// ==== Planner ====
+function fmtDayDate(dayKey){ const idx=DAYS.indexOf(dayKey); const d=addDays(currentWeekStart, idx); return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'}); }
+function renderWeekLabel(){
+  const end=addDays(currentWeekStart,6);
+  document.getElementById('weekLabel').textContent = `${currentWeekStart.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})} – ${end.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'})}`;
+}
+function renderPlanner(){
+  renderWeekLabel();
+  const wrap=document.getElementById('plannerDays'); wrap.innerHTML='';
+  DAYS.forEach(day=>{
+    let dayKcal=0;
+    const card=document.createElement('div');
+    const dayDate=addDays(currentWeekStart, DAYS.indexOf(day));
+    const isToday=fmtDate(dayDate)===fmtDate(new Date());
+    card.className='day-card'+(isToday?' today':'');
+    const head=document.createElement('div'); head.className='day-card-head';
+    head.innerHTML=`<h3>${DAY_LABELS[day]}<span class="sub">${fmtDayDate(day)}</span>${isToday?'<span class="today-badge">Heute</span>':''}</h3><span class="kcal-total"><b id="kcal-${day}">–</b> kcal</span>`;
+    card.appendChild(head);
+    MEALS.forEach(meal=>{
+      const row=document.createElement('div'); row.className='meal-row';
+      const rid=currentPlan[day]?.[meal];
+      const recipe=rid?recipes.find(r=>r.id===rid):null;
+      if(recipe?.nutrition?.kcal) dayKcal+=recipe.nutrition.kcal;
+      row.innerHTML=`<div class="meal-label">${MEAL_LABELS[meal]}</div>`;
+      const slot=document.createElement('div'); slot.className='slot'+(recipe?' filled':'');
+      if(recipe){
+        slot.innerHTML=`
+          <div class="slot-content"><div class="rname">${escapeHtml(recipe.name)}</div><div class="rkcal">${recipe.nutrition?.kcal ?? '–'} kcal</div></div>
+          <div class="slot-actions"><button type="button" class="swap-btn" title="Rezept ändern">⇄</button><button type="button" class="rm-btn" title="Entfernen">×</button></div>`;
+        slot.querySelector('.slot-content').onclick=()=>openDetail(recipe.id);
+        slot.querySelector('.swap-btn').onclick=(e)=>{ e.stopPropagation(); openSlotPicker(day, meal); };
+        slot.querySelector('.rm-btn').onclick=async (e)=>{ e.stopPropagation(); currentPlan[day][meal]=null; await writeWeekDoc(); };
+      } else {
+        slot.textContent='+ Rezept wählen';
+        slot.onclick=()=>openSlotPicker(day, meal);
+      }
+      row.appendChild(slot); card.appendChild(row);
+    });
+    wrap.appendChild(card);
+    const kcalEl=head.querySelector(`#kcal-${day}`); if(kcalEl) kcalEl.textContent=dayKcal||'–';
+  });
+}
+document.getElementById('prevWeek').onclick=()=>{ currentWeekStart=addDays(currentWeekStart,-7); attachWeekListener(); };
+document.getElementById('nextWeek').onclick=()=>{ currentWeekStart=addDays(currentWeekStart,7); attachWeekListener(); };
+
+// ==== Shopping list ====
+function itemKey(name, unit){ return (name.trim().toLowerCase()+'|'+(unit||'').trim().toLowerCase()).replace(/\s+/g,'_'); }
+function computeShoppingItems(){
+  const counts={};
+  DAYS.forEach(day=>MEALS.forEach(meal=>{ const rid=currentPlan[day]?.[meal]; if(rid) counts[rid]=(counts[rid]||0)+1; }));
+  const items={};
+  Object.keys(counts).forEach(rid=>{
+    const recipe=recipes.find(r=>r.id===rid); if(!recipe || !recipe.ingredients) return;
+    const times=counts[rid];
+    recipe.ingredients.forEach(ing=>{
+      const key=itemKey(ing.name, ing.unit);
+      if(!items[key]) items[key]={name:ing.name, unit:ing.unit||'', amount:0, hasAmount: ing.amount!=null};
+      if(ing.amount!=null) items[key].amount += ing.amount*times;
+    });
+  });
+  return Object.entries(items).map(([key,v])=>({key, ...v})).sort((a,b)=>a.name.localeCompare(b.name,'de'));
+}
+function renderShoppingList(){
+  const box=document.getElementById('shoppingList');
+  const items=computeShoppingItems();
+  if(items.length===0){ box.innerHTML=`<div class="shop-empty">Noch keine Rezepte für diese Woche eingeplant.</div>`; return; }
+  box.innerHTML='';
+  const list=document.createElement('div'); list.className='shop-list';
+  items.forEach(item=>{
+    const isChecked=checkedItems.includes(item.key);
+    const row=document.createElement('label'); row.className='shop-item'+(isChecked?' checked':'');
+    const qtyText=item.hasAmount ? `<span class="qty">${formatScaledAmount(item.amount,1)}${item.unit?' '+escapeHtml(item.unit):''}</span> ` : '';
+    row.innerHTML=`<input type="checkbox" ${isChecked?'checked':''}><span class="txt">${qtyText}${escapeHtml(item.name)}</span>`;
+    row.querySelector('input').addEventListener('change', async (e)=>{
+      if(e.target.checked){ if(!checkedItems.includes(item.key)) checkedItems.push(item.key); row.classList.add('checked'); }
+      else { checkedItems = checkedItems.filter(k=>k!==item.key); row.classList.remove('checked'); }
+      await writeWeekDoc();
+    });
+    list.appendChild(row);
+  });
+  box.appendChild(list);
+}
+document.getElementById('resetShopBtn').onclick=async ()=>{ checkedItems=[]; await writeWeekDoc(); };
+
+// ==== Init ====
+loadCustomRecipes();
+rebuildRecipeList();
+renderTagRow();
+renderRecipeGrid();
+attachWeekListener();
+</script>
+</body>
+</html>
